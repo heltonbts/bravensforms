@@ -111,6 +111,31 @@
   color: var(--text);
 }
 
+.dash-questions {
+  display: grid;
+  gap: 22px;
+  margin-bottom: 36px;
+}
+
+.dash-question-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.dash-question-title {
+  font-weight: 700;
+}
+
+.dash-question-meta {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
 .dash-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--border);

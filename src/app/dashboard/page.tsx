@@ -117,6 +117,45 @@ export default async function DashboardPage() {
             })}
           </section>
 
+          <h2 className="dash-section-title">Respostas por pergunta</h2>
+          <section className="dash-questions">
+            {CONFIG.steps.map((step) => {
+              if (step.type !== "single") return null;
+              const answered = sessions.filter((s) => s.answers[step.id]).length;
+              return (
+                <div className="dash-question" key={step.id}>
+                  <div className="dash-question-head">
+                    <span className="dash-question-title">{step.title}</span>
+                    <span className="dash-question-meta">{answered} responderam</span>
+                  </div>
+                  <div className="dash-funnel">
+                    {step.options.map((option) => {
+                      const count = sessions.filter(
+                        (s) => s.answers[step.id] === option.id,
+                      ).length;
+                      const percent =
+                        answered > 0 ? Math.round((count / answered) * 100) : 0;
+                      return (
+                        <div className="dash-stage" key={option.id}>
+                          <span
+                            className="dash-stage-fill"
+                            style={{ width: `${percent}%` }}
+                          />
+                          <span className="dash-stage-row">
+                            <span className="dash-stage-label">{option.label}</span>
+                            <span className="dash-stage-meta">
+                              <span className="dash-stage-count">{count}</span> · {percent}%
+                            </span>
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </section>
+
           <h2 className="dash-section-title">Pessoas ({total})</h2>
           <div className="dash-table-wrap">
             <table className="dash-table">

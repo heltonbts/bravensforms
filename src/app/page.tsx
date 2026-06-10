@@ -93,11 +93,12 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Registra a etapa mais avançada que a pessoa alcançou.
+  // Registra a etapa mais avançada + as respostas já coletadas até aqui.
   useEffect(() => {
     trackEvent("step", {
       stepIndex: currentStep,
       stepId: CONFIG.steps[currentStep]?.id,
+      answers,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep]);
