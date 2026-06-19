@@ -55,6 +55,7 @@ function outcomeBadge(session: Session): { label: string; kind: string } {
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo", // fuso de Brasília (UTC-3); servidor roda em UTC
     day: "2-digit",
     month: "2-digit",
     hour: "2-digit",
