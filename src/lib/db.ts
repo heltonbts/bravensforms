@@ -13,6 +13,7 @@ export type Session = {
   groupClicked: boolean;
   sold: boolean;
   saleValue: number | null;
+  utm: Record<string, string>;
   answers: Record<string, string>;
   name: string | null;
   phone: string | null;
@@ -40,6 +41,7 @@ function ensureSchema(): Promise<void> {
           group_clicked boolean NOT NULL DEFAULT false,
           sold boolean NOT NULL DEFAULT false,
           sale_value numeric,
+          utm jsonb NOT NULL DEFAULT '{}'::jsonb,
           answers jsonb NOT NULL DEFAULT '{}'::jsonb,
           name text,
           phone text,
@@ -52,17 +54,20 @@ function ensureSchema(): Promise<void> {
       // Migração p/ bancos que já tinham a tabela antes destas colunas.
       await sql`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS sold boolean NOT NULL DEFAULT false`;
       await sql`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS sale_value numeric`;
+      await sql`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS utm jsonb NOT NULL DEFAULT '{}'::jsonb`;
       await sql`
         CREATE TABLE IF NOT EXISTS leads (
           id text PRIMARY KEY,
           brand_name text,
           outcome text,
+          utm jsonb NOT NULL DEFAULT '{}'::jsonb,
           answers jsonb NOT NULL DEFAULT '{}'::jsonb,
           submitted_at timestamptz NOT NULL DEFAULT now(),
           user_agent text,
           ip text
         )
       `;
+      await sql`ALTER TABLE leads ADD COLUMN IF NOT EXISTS utm jsonb NOT NULL DEFAULT '{}'::jsonb`;
     })().catch((error) => {
       schemaReady = null; // permite nova tentativa se falhar
       throw error;
@@ -80,6 +85,7 @@ type UpsertInput = {
   stepId: string | null;
   outcome: Outcome | null;
   answers: Record<string, string>;
+  utm: Record<string, string>;
   userAgent: string | null;
   ip: string | null;
 };
@@ -95,11 +101,12 @@ export async function upsertSession(input: UpsertInput): Promise<void> {
   await sql`
     INSERT INTO sessions (
       id, max_step_index, max_step_id, outcome, scheduled, group_clicked,
-      answers, name, phone, email, instagram, user_agent, ip, updated_at
+      utm, answers, name, phone, email, instagram, user_agent, ip, updated_at
     )
     VALUES (
       ${input.id}, ${input.stepIndex}, ${input.stepId}, ${outcome},
       ${input.type === "schedule"}, ${input.type === "groupclick"},
+      ${JSON.stringify(input.utm)}::jsonb,
       ${JSON.stringify(input.answers)}::jsonb,
       ${name}, ${phone}, ${email}, ${instagram},
       ${input.userAgent}, ${input.ip}, now()
@@ -110,6 +117,8 @@ export async function upsertSession(input: UpsertInput): Promise<void> {
       outcome = COALESCE(EXCLUDED.outcome, sessions.outcome),
       scheduled = sessions.scheduled OR EXCLUDED.scheduled,
       group_clicked = sessions.group_clicked OR EXCLUDED.group_clicked,
+      -- Atribuição de primeiro toque: mantém o UTM da primeira visita.
+      utm = CASE WHEN sessions.utm = '{}'::jsonb THEN EXCLUDED.utm ELSE sessions.utm END,
       answers = sessions.answers || EXCLUDED.answers,
       name = COALESCE(EXCLUDED.name, sessions.name),
       phone = COALESCE(EXCLUDED.phone, sessions.phone),
@@ -124,6 +133,7 @@ type LeadInput = {
   brandName: string | null;
   outcome: Outcome | null;
   answers: Record<string, string>;
+  utm: Record<string, string>;
   submittedAt: string;
   userAgent: string | null;
   ip: string | null;
@@ -132,9 +142,10 @@ type LeadInput = {
 export async function insertLead(input: LeadInput): Promise<void> {
   await ensureSchema();
   await sql`
-    INSERT INTO leads (id, brand_name, outcome, answers, submitted_at, user_agent, ip)
+    INSERT INTO leads (id, brand_name, outcome, utm, answers, submitted_at, user_agent, ip)
     VALUES (
       ${input.id}, ${input.brandName}, ${input.outcome},
+      ${JSON.stringify(input.utm)}::jsonb,
       ${JSON.stringify(input.answers)}::jsonb,
       ${input.submittedAt}, ${input.userAgent}, ${input.ip}
     )
@@ -154,6 +165,7 @@ function mapSession(row: Record<string, unknown>): Session {
     groupClicked: Boolean(row.group_clicked),
     sold: Boolean(row.sold),
     saleValue: row.sale_value == null ? null : Number(row.sale_value),
+    utm: (row.utm as Record<string, string>) ?? {},
     answers: (row.answers as Record<string, string>) ?? {},
     name: (row.name as string | null) ?? null,
     phone: (row.phone as string | null) ?? null,
@@ -165,7 +177,7 @@ function mapSession(row: Record<string, unknown>): Session {
 const SESSION_COLS = `
   id, started_at, updated_at, max_step_index, max_step_id,
   outcome, scheduled, group_clicked, sold, sale_value,
-  answers, name, phone, email, instagram
+  utm, answers, name, phone, email, instagram
 `;
 
 export async function getSessions(): Promise<Session[]> {

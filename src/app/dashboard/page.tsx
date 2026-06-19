@@ -62,6 +62,26 @@ function formatDate(iso: string): string {
   });
 }
 
+// Rótulo curto da origem (pra agrupar): utm_source, ou referrer, ou "Direto".
+function sourceKey(session: Session): string {
+  const utm = session.utm ?? {};
+  if (utm.utm_source) return utm.utm_source.toLowerCase();
+  if (utm.fbclid) return "facebook (clique)";
+  if (utm.gclid) return "google (clique)";
+  if (utm.ttclid) return "tiktok (clique)";
+  if (utm.referrer) return utm.referrer.toLowerCase();
+  return "direto / sem utm";
+}
+
+// Detalhe da campanha de um lead (source / medium / campaign).
+function sourceDetail(session: Session): string {
+  const utm = session.utm ?? {};
+  const parts = [utm.utm_source, utm.utm_medium, utm.utm_campaign].filter(Boolean);
+  if (parts.length) return parts.join(" · ");
+  if (utm.referrer) return `ref: ${utm.referrer}`;
+  return "Direto / sem UTM";
+}
+
 export default async function DashboardPage() {
   const sessions = await getSessions();
   const total = sessions.length;
@@ -83,6 +103,25 @@ export default async function DashboardPage() {
 
   // Etapas mostradas no detalhe de cada pessoa (tudo, menos o nome no topo).
   const detailSteps = CONFIG.steps.filter((s) => s.id !== "nome");
+
+  // Agrupa por origem do tráfego: entradas, qualificados e vendas por fonte.
+  const sourceMap = new Map<
+    string,
+    { total: number; qualificados: number; vendas: number; receita: number }
+  >();
+  for (const s of sessions) {
+    const key = sourceKey(s);
+    const row =
+      sourceMap.get(key) ?? { total: 0, qualificados: 0, vendas: 0, receita: 0 };
+    row.total += 1;
+    if (s.outcome === "qualificado") row.qualificados += 1;
+    if (s.sold) {
+      row.vendas += 1;
+      row.receita += s.saleValue ?? 0;
+    }
+    sourceMap.set(key, row);
+  }
+  const sources = [...sourceMap.entries()].sort((a, b) => b[1].total - a[1].total);
 
   const sorted = [...sessions].sort(
     (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
@@ -133,6 +172,27 @@ export default async function DashboardPage() {
               <span className="dash-kpi-value">{brl(receita)}</span>
               <span className="dash-kpi-extra">enviada como Purchase</span>
             </div>
+          </section>
+
+          <h2 className="dash-section-title">Origem do tráfego</h2>
+          <section className="dash-funnel">
+            {sources.map(([key, row]) => {
+              const percent = total > 0 ? Math.round((row.total / total) * 100) : 0;
+              return (
+                <div className="dash-stage" key={key}>
+                  <span className="dash-stage-fill" style={{ width: `${percent}%` }} />
+                  <span className="dash-stage-row">
+                    <span className="dash-stage-label">{key}</span>
+                    <span className="dash-stage-meta">
+                      <span className="dash-stage-count">{row.total}</span> · {percent}%
+                      {" · "}
+                      {row.qualificados} qualif.
+                      {row.vendas > 0 ? ` · ${row.vendas} venda(s) (${brl(row.receita)})` : ""}
+                    </span>
+                  </span>
+                </div>
+              );
+            })}
           </section>
 
           <h2 className="dash-section-title">Respostas por pergunta</h2>
@@ -188,6 +248,7 @@ export default async function DashboardPage() {
                         {" · "}
                         {formatDate(session.updatedAt)}
                       </span>
+                      <span className="dash-person-source">📍 {sourceDetail(session)}</span>
                     </div>
                     <div className="dash-person-tags">
                       <span className={`dash-badge is-${stage.kind}`}>{stage.label}</span>

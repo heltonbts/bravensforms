@@ -10,6 +10,7 @@ type TrackPayload = {
   stepId?: string;
   outcome?: Outcome;
   answers?: Record<string, string>;
+  utm?: Record<string, string>;
 };
 
 export async function POST(request: NextRequest) {
@@ -33,6 +34,7 @@ export async function POST(request: NextRequest) {
       stepId: payload.stepId ?? null,
       outcome: payload.outcome ?? null,
       answers: payload.answers ?? {},
+      utm: payload.utm ?? {},
       userAgent: request.headers.get("user-agent"),
       ip:
         request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??

@@ -109,6 +109,46 @@ function applyPhoneMask(value: string) {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+const UTM_KEYS = [
+  "utm_source",
+  "utm_medium",
+  "utm_campaign",
+  "utm_content",
+  "utm_term",
+  "fbclid",
+  "gclid",
+  "ttclid",
+];
+
+// Lê os parâmetros de rastreio da URL na primeira visita e guarda na sessão
+// (atribuição de primeiro toque). Se não houver UTM, registra o referrer.
+function resolveTracking(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  const stored = sessionStorage.getItem("funnel_utm");
+  if (stored) {
+    try {
+      return JSON.parse(stored) as Record<string, string>;
+    } catch {
+      /* ignora json inválido e recaptura abaixo */
+    }
+  }
+  const sp = new URLSearchParams(window.location.search);
+  const utm: Record<string, string> = {};
+  for (const key of UTM_KEYS) {
+    const value = sp.get(key);
+    if (value) utm[key] = value.slice(0, 200);
+  }
+  if (!utm.utm_source && document.referrer) {
+    try {
+      utm.referrer = new URL(document.referrer).hostname;
+    } catch {
+      /* referrer inválido, ignora */
+    }
+  }
+  sessionStorage.setItem("funnel_utm", JSON.stringify(utm));
+  return utm;
+}
+
 // Monta a URL do Calendly embutido, já com os dados do lead preenchidos.
 function calendlyEmbedUrl(answers: Answers) {
   const url = new URL(CONFIG.qualified.calendarUrl);
@@ -128,6 +168,7 @@ export default function Home() {
   const [answers, setAnswers] = useState<Answers>({});
   const [message, setMessage] = useState("");
   const sessionIdRef = useRef("");
+  const utmRef = useRef<Record<string, string>>({});
 
   const steps = CONFIG.steps;
   const step = steps[currentStep];
@@ -138,7 +179,7 @@ export default function Home() {
     fetch("/api/track", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sessionId, type, ...extra }),
+      body: JSON.stringify({ sessionId, type, utm: utmRef.current, ...extra }),
       keepalive: true,
     }).catch(() => {});
   }
@@ -151,6 +192,7 @@ export default function Home() {
       sessionStorage.setItem("funnel_sid", id);
     }
     sessionIdRef.current = id;
+    utmRef.current = resolveTracking();
     trackEvent("start", { stepIndex: -1 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -239,6 +281,7 @@ export default function Home() {
           brandName: CONFIG.brandName,
           outcome,
           answers: withOutcome,
+          utm: utmRef.current,
           submittedAt: new Date().toISOString(),
         }),
         keepalive: true,

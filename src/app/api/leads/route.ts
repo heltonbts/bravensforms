@@ -5,6 +5,7 @@ type LeadPayload = {
   brandName?: string;
   outcome?: Outcome;
   answers?: Record<string, string>;
+  utm?: Record<string, string>;
   submittedAt?: string;
 };
 
@@ -29,6 +30,7 @@ export async function POST(request: NextRequest) {
       brandName: payload.brandName ?? null,
       outcome: payload.outcome ?? null,
       answers: payload.answers,
+      utm: payload.utm ?? {},
       submittedAt: payload.submittedAt ?? new Date().toISOString(),
       userAgent: request.headers.get("user-agent"),
       ip:

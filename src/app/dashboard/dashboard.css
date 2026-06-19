@@ -245,6 +245,14 @@
   font-size: 0.85rem;
 }
 
+.dash-person-source {
+  display: block;
+  margin-top: 3px;
+  color: #14b8a6;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
 .dash-person-tags {
   display: flex;
   flex-wrap: wrap;
