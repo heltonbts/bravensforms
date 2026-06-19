@@ -278,3 +278,58 @@
   font-weight: 500;
   line-height: 1.35;
 }
+
+/* ===== Disparo de venda (Purchase) ===== */
+.dash-sale {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dash-sale-input {
+  width: 130px;
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0 12px;
+  background: #ffffff;
+  outline: none;
+}
+
+.dash-sale-input:focus {
+  border-color: var(--primary);
+}
+
+.dash-sale-btn {
+  height: 38px;
+  border: 0;
+  border-radius: 10px;
+  padding: 0 16px;
+  font-weight: 700;
+  color: #ffffff;
+  background: #25d366;
+  transition: var(--transition);
+}
+
+.dash-sale-btn:hover:not(:disabled) {
+  background: #1ebe5a;
+}
+
+.dash-sale-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.dash-sold {
+  font-weight: 800;
+  color: #16a34a;
+}
+
+.dash-sale-warn {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}

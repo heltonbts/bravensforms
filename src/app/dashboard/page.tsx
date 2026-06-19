@@ -1,73 +1,56 @@
 import type { Metadata } from "next";
-import { CONFIG, pickText, type Gender, type QuizStep } from "@/lib/funnel-config";
+import { CONFIG, type QuizStep } from "@/lib/funnel-config";
 import { getSessions, type Session } from "@/lib/db";
+import { SaleButton } from "./SaleButton";
 import "./dashboard.css";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Dashboard | Funil",
+  title: "Dashboard | Bravens Mídia",
   robots: { index: false, follow: false },
 };
 
 const STEP_LABELS: Record<string, string> = {
   nome: "Nome",
-  classificacao: "Classificação",
-  objetivo: "Objetivo",
-  "corpo-dos-sonhos": "Corpo dos sonhos",
-  identificacao: "Identificação",
-  impacto: "Impacto",
-  tentativas: "Tentativas",
-  consistencia: "Consistência",
-  caneta: "Caneta (GLP-1)",
-  peso: "Peso",
-  altura: "Altura",
-  habitos: "Hábitos",
-  meta: "Meta a eliminar",
-  "corpo-desejado": "Corpo desejado",
-  projecao: "Motivação",
-  compromisso: "Compromisso",
   telefone: "WhatsApp",
+  instagram: "Instagram",
+  email: "Email",
+  experiencia: "Investe em marketing hoje",
+  faturamento: "Faturamento mensal",
+  investir: "Disposto a investir",
 };
 
-function sessionGender(session: Session): Gender {
-  return session.answers.gender === "mulher" ? "mulher" : "homem";
-}
-
 function labelForStep(step: QuizStep): string {
-  return STEP_LABELS[step.id] ?? pickText(step.title, "homem");
+  return STEP_LABELS[step.id] ?? step.title;
 }
 
-// Converte a resposta crua (id, ids separados por vírgula, ou texto) em algo legível.
+// Converte a resposta crua (id de opção ou texto) em algo legível.
 function answerDisplay(step: QuizStep, session: Session): string {
   const raw = session.answers[step.id];
   if (!raw) return "";
-  const gender = sessionGender(session);
-
   if (step.type === "single") {
     const option = step.options.find((o) => o.id === raw);
-    return option ? pickText(option.label, gender) : raw;
+    return option ? option.label : raw;
   }
-  if (step.type === "multi") {
-    const ids = raw.split(",").filter(Boolean);
-    return ids
-      .map((id) => {
-        const option = step.options.find((o) => o.id === id);
-        return option ? pickText(option.label, gender) : id;
-      })
-      .join(", ");
-  }
-  return raw; // slider / texto
+  return raw; // texto / telefone / email / instagram
 }
 
-function furthestStage(session: Session): {
-  label: string;
-  kind: "checkout" | "offer" | "step";
-} {
-  if (session.checkoutClicked) return { label: "Foi pro plano", kind: "checkout" };
-  if (session.reachedResult) return { label: "Viu o diagnóstico", kind: "offer" };
+function outcomeBadge(session: Session): { label: string; kind: string } {
+  if (session.outcome === "qualificado") {
+    return {
+      label: session.scheduled ? "Agendou reunião" : "Qualificado",
+      kind: session.scheduled ? "checkout" : "offer",
+    };
+  }
+  if (session.outcome === "grupo") {
+    return {
+      label: session.groupClicked ? "Entrou no grupo" : "Grupo (desqualificado)",
+      kind: "step",
+    };
+  }
   const step = CONFIG.steps.find((s) => s.id === session.maxStepId);
-  return { label: step ? labelForStep(step) : "Escolheu o caminho", kind: "step" };
+  return { label: step ? labelForStep(step) : "Abriu o funil", kind: "step" };
 }
 
 function formatDate(iso: string): string {
@@ -83,20 +66,22 @@ export default async function DashboardPage() {
   const sessions = await getSessions();
   const total = sessions.length;
 
-  const reachedResult = sessions.filter((s) => s.reachedResult).length;
-  const checkout = sessions.filter((s) => s.checkoutClicked).length;
-  const homens = sessions.filter((s) => sessionGender(s) === "homem").length;
-  const mulheres = sessions.filter((s) => sessionGender(s) === "mulher").length;
+  const qualificados = sessions.filter((s) => s.outcome === "qualificado").length;
+  const agendaram = sessions.filter((s) => s.scheduled).length;
+  const grupo = sessions.filter((s) => s.outcome === "grupo").length;
+  const vendas = sessions.filter((s) => s.sold).length;
+  const receita = sessions.reduce((sum, s) => sum + (s.saleValue ?? 0), 0);
 
   const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0);
+  const brl = (n: number) =>
+    n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-  // Perguntas de escolha (única ou múltipla): base da distribuição de respostas.
+  // Perguntas de escolha única: base da distribuição de respostas.
   const choiceSteps = CONFIG.steps.filter(
-    (s): s is Extract<QuizStep, { type: "single" | "multi" }> =>
-      s.type === "single" || s.type === "multi",
+    (s): s is Extract<QuizStep, { type: "single" }> => s.type === "single",
   );
 
-  // Etapas mostradas no detalhe de cada pessoa (tudo, menos o nome que vai no topo).
+  // Etapas mostradas no detalhe de cada pessoa (tudo, menos o nome no topo).
   const detailSteps = CONFIG.steps.filter((s) => s.id !== "nome");
 
   const sorted = [...sessions].sort(
@@ -124,20 +109,29 @@ export default async function DashboardPage() {
               <span className="dash-kpi-value">{total}</span>
             </div>
             <div className="dash-kpi">
-              <span className="dash-kpi-label">Viram o diagnóstico</span>
-              <span className="dash-kpi-value">{reachedResult}</span>
-              <span className="dash-kpi-extra">{pct(reachedResult)}% dos que entraram</span>
+              <span className="dash-kpi-label">Qualificados</span>
+              <span className="dash-kpi-value">{qualificados}</span>
+              <span className="dash-kpi-extra">{pct(qualificados)}% dos que entraram</span>
             </div>
             <div className="dash-kpi">
-              <span className="dash-kpi-label">Foram pro plano</span>
-              <span className="dash-kpi-value">{checkout}</span>
-              <span className="dash-kpi-extra">{pct(checkout)}% dos que entraram</span>
+              <span className="dash-kpi-label">Agendaram reunião</span>
+              <span className="dash-kpi-value">{agendaram}</span>
+              <span className="dash-kpi-extra">{pct(agendaram)}% dos que entraram</span>
             </div>
             <div className="dash-kpi">
-              <span className="dash-kpi-label">Homens / Mulheres</span>
-              <span className="dash-kpi-value">
-                {homens} / {mulheres}
-              </span>
+              <span className="dash-kpi-label">Foram pro grupo</span>
+              <span className="dash-kpi-value">{grupo}</span>
+              <span className="dash-kpi-extra">{pct(grupo)}% dos que entraram</span>
+            </div>
+            <div className="dash-kpi">
+              <span className="dash-kpi-label">Vendas</span>
+              <span className="dash-kpi-value">{vendas}</span>
+              <span className="dash-kpi-extra">{pct(vendas)}% dos que entraram</span>
+            </div>
+            <div className="dash-kpi">
+              <span className="dash-kpi-label">Receita</span>
+              <span className="dash-kpi-value">{brl(receita)}</span>
+              <span className="dash-kpi-extra">enviada como Purchase</span>
             </div>
           </section>
 
@@ -148,14 +142,13 @@ export default async function DashboardPage() {
               return (
                 <div className="dash-question" key={step.id}>
                   <div className="dash-question-head">
-                    <span className="dash-question-title">{pickText(step.title, "homem")}</span>
+                    <span className="dash-question-title">{step.title}</span>
                     <span className="dash-question-meta">{answered} responderam</span>
                   </div>
                   <div className="dash-funnel">
                     {step.options.map((option) => {
-                      // Conta tanto escolha única quanto múltipla (ids separados por vírgula).
-                      const count = sessions.filter((s) =>
-                        (s.answers[step.id] ?? "").split(",").includes(option.id),
+                      const count = sessions.filter(
+                        (s) => s.answers[step.id] === option.id,
                       ).length;
                       const percent =
                         answered > 0 ? Math.round((count / answered) * 100) : 0;
@@ -166,9 +159,7 @@ export default async function DashboardPage() {
                             style={{ width: `${percent}%` }}
                           />
                           <span className="dash-stage-row">
-                            <span className="dash-stage-label">
-                              {pickText(option.label, "homem")}
-                            </span>
+                            <span className="dash-stage-label">{option.label}</span>
                             <span className="dash-stage-meta">
                               <span className="dash-stage-count">{count}</span> · {percent}%
                             </span>
@@ -185,28 +176,32 @@ export default async function DashboardPage() {
           <h2 className="dash-section-title">Pessoas ({total})</h2>
           <section className="dash-people">
             {sorted.map((session) => {
-              const stage = furthestStage(session);
-              const gender = sessionGender(session);
+              const stage = outcomeBadge(session);
               return (
                 <article className="dash-person" key={session.id}>
                   <div className="dash-person-head">
                     <div>
                       <span className="dash-person-name">{session.name ?? "Sem nome"}</span>
                       <span className="dash-person-meta">
-                        {gender === "mulher" ? "👩 Mulher" : "👨 Homem"}
-                        {" · "}
                         {session.phone ?? "sem WhatsApp"}
+                        {session.instagram ? ` · @${session.instagram}` : ""}
                         {" · "}
                         {formatDate(session.updatedAt)}
                       </span>
                     </div>
                     <div className="dash-person-tags">
                       <span className={`dash-badge is-${stage.kind}`}>{stage.label}</span>
-                      {session.checkoutClicked ? (
-                        <span className="dash-badge is-checkout">Foi pro plano</span>
+                      {session.sold ? (
+                        <span className="dash-badge is-checkout">Cliente</span>
                       ) : null}
                     </div>
                   </div>
+
+                  <SaleButton
+                    sessionId={session.id}
+                    sold={session.sold}
+                    saleValue={session.saleValue}
+                  />
 
                   <dl className="dash-answers">
                     {detailSteps.map((step) => {

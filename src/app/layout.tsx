@@ -11,9 +11,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Método Nutrido Para Sempre | Dieta 100% personalizada",
+  title: "Bravens Mídia | Estrutura de marketing completa pro seu negócio",
   description:
-    "Faça o quiz e receba uma dieta feita para o seu objetivo, gostos e rotina. Suporte por 1 mês e garantia de 7 dias.",
+    "Tráfego no Meta, Google, TikTok e Pinterest, presença local, site, CRM, social media e vídeo. Toda a estrutura de marketing que o seu negócio precisa pra vender mais.",
   icons: {
     icon: "/icon.svg",
   },

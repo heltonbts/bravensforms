@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Protege o /dashboard com HTTP Basic Auth (credenciais no .env.local).
+// Protege o /dashboard (e o disparo de venda) com HTTP Basic Auth.
 export const config = {
-  matcher: ["/dashboard", "/dashboard/:path*"],
+  matcher: ["/dashboard", "/dashboard/:path*", "/api/sale"],
 };
 
 export function middleware(request: NextRequest) {

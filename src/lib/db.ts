@@ -1,17 +1,23 @@
 import { neon } from "@neondatabase/serverless";
 
+export type Outcome = "qualificado" | "grupo";
+
 export type Session = {
   id: string;
   startedAt: string;
   updatedAt: string;
   maxStepIndex: number;
   maxStepId: string | null;
-  reachedResult: boolean;
-  checkoutClicked: boolean;
-  whatsappClicked: boolean;
+  outcome: Outcome | null;
+  scheduled: boolean;
+  groupClicked: boolean;
+  sold: boolean;
+  saleValue: number | null;
   answers: Record<string, string>;
   name: string | null;
   phone: string | null;
+  email: string | null;
+  instagram: string | null;
 };
 
 const sql = neon(process.env.DATABASE_URL ?? "");
@@ -29,20 +35,28 @@ function ensureSchema(): Promise<void> {
           updated_at timestamptz NOT NULL DEFAULT now(),
           max_step_index int NOT NULL DEFAULT -1,
           max_step_id text,
-          reached_result boolean NOT NULL DEFAULT false,
-          checkout_clicked boolean NOT NULL DEFAULT false,
-          whatsapp_clicked boolean NOT NULL DEFAULT false,
+          outcome text,
+          scheduled boolean NOT NULL DEFAULT false,
+          group_clicked boolean NOT NULL DEFAULT false,
+          sold boolean NOT NULL DEFAULT false,
+          sale_value numeric,
           answers jsonb NOT NULL DEFAULT '{}'::jsonb,
           name text,
           phone text,
+          email text,
+          instagram text,
           user_agent text,
           ip text
         )
       `;
+      // Migração p/ bancos que já tinham a tabela antes destas colunas.
+      await sql`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS sold boolean NOT NULL DEFAULT false`;
+      await sql`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS sale_value numeric`;
       await sql`
         CREATE TABLE IF NOT EXISTS leads (
           id text PRIMARY KEY,
           brand_name text,
+          outcome text,
           answers jsonb NOT NULL DEFAULT '{}'::jsonb,
           submitted_at timestamptz NOT NULL DEFAULT now(),
           user_agent text,
@@ -57,11 +71,14 @@ function ensureSchema(): Promise<void> {
   return schemaReady;
 }
 
+type TrackType = "start" | "step" | "outcome" | "schedule" | "groupclick";
+
 type UpsertInput = {
   id: string;
-  type: "start" | "step" | "result" | "checkout" | "whatsapp";
+  type: TrackType;
   stepIndex: number;
   stepId: string | null;
+  outcome: Outcome | null;
   answers: Record<string, string>;
   userAgent: string | null;
   ip: string | null;
@@ -71,27 +88,33 @@ export async function upsertSession(input: UpsertInput): Promise<void> {
   await ensureSchema();
   const name = input.answers.nome ?? null;
   const phone = input.answers.telefone ?? null;
+  const email = input.answers.email ?? null;
+  const instagram = input.answers.instagram ?? null;
+  const outcome = input.type === "outcome" ? input.outcome : null;
 
   await sql`
     INSERT INTO sessions (
-      id, max_step_index, max_step_id, reached_result, checkout_clicked,
-      whatsapp_clicked, answers, name, phone, user_agent, ip, updated_at
+      id, max_step_index, max_step_id, outcome, scheduled, group_clicked,
+      answers, name, phone, email, instagram, user_agent, ip, updated_at
     )
     VALUES (
-      ${input.id}, ${input.stepIndex}, ${input.stepId},
-      ${input.type === "result"}, ${input.type === "checkout"},
-      ${input.type === "whatsapp"}, ${JSON.stringify(input.answers)}::jsonb,
-      ${name}, ${phone}, ${input.userAgent}, ${input.ip}, now()
+      ${input.id}, ${input.stepIndex}, ${input.stepId}, ${outcome},
+      ${input.type === "schedule"}, ${input.type === "groupclick"},
+      ${JSON.stringify(input.answers)}::jsonb,
+      ${name}, ${phone}, ${email}, ${instagram},
+      ${input.userAgent}, ${input.ip}, now()
     )
     ON CONFLICT (id) DO UPDATE SET
       max_step_index = GREATEST(sessions.max_step_index, EXCLUDED.max_step_index),
       max_step_id = COALESCE(EXCLUDED.max_step_id, sessions.max_step_id),
-      reached_result = sessions.reached_result OR EXCLUDED.reached_result,
-      checkout_clicked = sessions.checkout_clicked OR EXCLUDED.checkout_clicked,
-      whatsapp_clicked = sessions.whatsapp_clicked OR EXCLUDED.whatsapp_clicked,
+      outcome = COALESCE(EXCLUDED.outcome, sessions.outcome),
+      scheduled = sessions.scheduled OR EXCLUDED.scheduled,
+      group_clicked = sessions.group_clicked OR EXCLUDED.group_clicked,
       answers = sessions.answers || EXCLUDED.answers,
       name = COALESCE(EXCLUDED.name, sessions.name),
       phone = COALESCE(EXCLUDED.phone, sessions.phone),
+      email = COALESCE(EXCLUDED.email, sessions.email),
+      instagram = COALESCE(EXCLUDED.instagram, sessions.instagram),
       updated_at = now()
   `;
 }
@@ -99,6 +122,7 @@ export async function upsertSession(input: UpsertInput): Promise<void> {
 type LeadInput = {
   id: string;
   brandName: string | null;
+  outcome: Outcome | null;
   answers: Record<string, string>;
   submittedAt: string;
   userAgent: string | null;
@@ -108,35 +132,61 @@ type LeadInput = {
 export async function insertLead(input: LeadInput): Promise<void> {
   await ensureSchema();
   await sql`
-    INSERT INTO leads (id, brand_name, answers, submitted_at, user_agent, ip)
+    INSERT INTO leads (id, brand_name, outcome, answers, submitted_at, user_agent, ip)
     VALUES (
-      ${input.id}, ${input.brandName}, ${JSON.stringify(input.answers)}::jsonb,
+      ${input.id}, ${input.brandName}, ${input.outcome},
+      ${JSON.stringify(input.answers)}::jsonb,
       ${input.submittedAt}, ${input.userAgent}, ${input.ip}
     )
     ON CONFLICT (id) DO NOTHING
   `;
 }
 
-export async function getSessions(): Promise<Session[]> {
-  await ensureSchema();
-  const rows = (await sql`
-    SELECT id, started_at, updated_at, max_step_index, max_step_id,
-           reached_result, checkout_clicked, whatsapp_clicked, answers, name, phone
-    FROM sessions
-    ORDER BY updated_at DESC
-  `) as Record<string, unknown>[];
-
-  return rows.map((row) => ({
+function mapSession(row: Record<string, unknown>): Session {
+  return {
     id: row.id as string,
     startedAt: new Date(row.started_at as string).toISOString(),
     updatedAt: new Date(row.updated_at as string).toISOString(),
     maxStepIndex: Number(row.max_step_index),
     maxStepId: (row.max_step_id as string | null) ?? null,
-    reachedResult: Boolean(row.reached_result),
-    checkoutClicked: Boolean(row.checkout_clicked),
-    whatsappClicked: Boolean(row.whatsapp_clicked),
+    outcome: (row.outcome as Outcome | null) ?? null,
+    scheduled: Boolean(row.scheduled),
+    groupClicked: Boolean(row.group_clicked),
+    sold: Boolean(row.sold),
+    saleValue: row.sale_value == null ? null : Number(row.sale_value),
     answers: (row.answers as Record<string, string>) ?? {},
     name: (row.name as string | null) ?? null,
     phone: (row.phone as string | null) ?? null,
-  }));
+    email: (row.email as string | null) ?? null,
+    instagram: (row.instagram as string | null) ?? null,
+  };
+}
+
+const SESSION_COLS = `
+  id, started_at, updated_at, max_step_index, max_step_id,
+  outcome, scheduled, group_clicked, sold, sale_value,
+  answers, name, phone, email, instagram
+`;
+
+export async function getSessions(): Promise<Session[]> {
+  await ensureSchema();
+  const rows = (await sql.query(
+    `SELECT ${SESSION_COLS} FROM sessions ORDER BY updated_at DESC`,
+  )) as Record<string, unknown>[];
+  return rows.map(mapSession);
+}
+
+// Marca a venda de um lead e devolve a sessão atualizada (com email/telefone
+// pra disparar o Purchase na CAPI). Não mexe em updated_at pra não reordenar.
+export async function markSale(input: {
+  sessionId: string;
+  value: number | null;
+}): Promise<Session | null> {
+  await ensureSchema();
+  const rows = (await sql.query(
+    `UPDATE sessions SET sold = true, sale_value = $1
+     WHERE id = $2 RETURNING ${SESSION_COLS}`,
+    [input.value, input.sessionId],
+  )) as Record<string, unknown>[];
+  return rows.length ? mapSession(rows[0]) : null;
 }

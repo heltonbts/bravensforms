@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { insertLead } from "@/lib/db";
+import { insertLead, type Outcome } from "@/lib/db";
 
 type LeadPayload = {
   brandName?: string;
+  outcome?: Outcome;
   answers?: Record<string, string>;
   submittedAt?: string;
 };
@@ -26,6 +27,7 @@ export async function POST(request: NextRequest) {
     await insertLead({
       id,
       brandName: payload.brandName ?? null,
+      outcome: payload.outcome ?? null,
       answers: payload.answers,
       submittedAt: payload.submittedAt ?? new Date().toISOString(),
       userAgent: request.headers.get("user-agent"),

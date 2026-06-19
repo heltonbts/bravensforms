@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { upsertSession } from "@/lib/db";
+import { upsertSession, type Outcome } from "@/lib/db";
 
-type TrackType = "start" | "step" | "result" | "checkout" | "whatsapp";
+type TrackType = "start" | "step" | "outcome" | "schedule" | "groupclick";
 
 type TrackPayload = {
   sessionId?: string;
   type?: TrackType;
   stepIndex?: number;
   stepId?: string;
+  outcome?: Outcome;
   answers?: Record<string, string>;
 };
 
@@ -30,6 +31,7 @@ export async function POST(request: NextRequest) {
       type: payload.type,
       stepIndex: typeof payload.stepIndex === "number" ? payload.stepIndex : -1,
       stepId: payload.stepId ?? null,
+      outcome: payload.outcome ?? null,
       answers: payload.answers ?? {},
       userAgent: request.headers.get("user-agent"),
       ip:
