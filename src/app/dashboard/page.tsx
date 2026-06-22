@@ -63,6 +63,13 @@ function formatDate(iso: string): string {
   });
 }
 
+// Data (YYYY-MM-DD) da sessão no fuso de Brasília, pra comparar com os filtros.
+function brasiliaDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-CA", {
+    timeZone: "America/Sao_Paulo",
+  });
+}
+
 // Rótulo curto da origem (pra agrupar): utm_source, ou referrer, ou "Direto".
 function sourceKey(session: Session): string {
   const utm = session.utm ?? {};
@@ -83,9 +90,33 @@ function sourceDetail(session: Session): string {
   return "Direto / sem UTM";
 }
 
-export default async function DashboardPage() {
-  const sessions = await getSessions();
+type DashboardSearchParams = {
+  from?: string;
+  to?: string;
+  status?: string;
+};
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<DashboardSearchParams>;
+}) {
+  const { from = "", to = "", status = "" } = await searchParams;
+
+  const allSessions = await getSessions();
+
+  // Aplica os filtros: intervalo de dias (fuso de Brasília) e situação no funil.
+  const sessions = allSessions.filter((s) => {
+    const day = brasiliaDate(s.updatedAt);
+    if (from && day < from) return false;
+    if (to && day > to) return false;
+    if (status === "finalizou" && s.outcome === null) return false;
+    if (status === "grupo" && !s.groupClicked) return false;
+    return true;
+  });
+
   const total = sessions.length;
+  const hasFilter = Boolean(from || to || status);
 
   const qualificados = sessions.filter((s) => s.outcome === "qualificado").length;
   const agendaram = sessions.filter((s) => s.scheduled).length;
@@ -137,9 +168,38 @@ export default async function DashboardPage() {
         </span>
       </div>
 
+      <form className="dash-filters" method="get">
+        <label className="dash-filter">
+          <span>De</span>
+          <input type="date" name="from" defaultValue={from} max={to || undefined} />
+        </label>
+        <label className="dash-filter">
+          <span>Até</span>
+          <input type="date" name="to" defaultValue={to} min={from || undefined} />
+        </label>
+        <label className="dash-filter">
+          <span>Mostrar</span>
+          <select name="status" defaultValue={status}>
+            <option value="">Todas as pessoas</option>
+            <option value="finalizou">Só quem finalizou o funil</option>
+            <option value="grupo">Só quem entrou no grupo</option>
+          </select>
+        </label>
+        <button type="submit" className="dash-filter-btn">
+          Filtrar
+        </button>
+        {hasFilter ? (
+          <a href="/dashboard" className="dash-filter-clear">
+            Limpar
+          </a>
+        ) : null}
+      </form>
+
       {total === 0 ? (
         <div className="dash-empty">
-          Ainda não há sessões registradas. Assim que alguém abrir o funil, os dados aparecem aqui.
+          {hasFilter
+            ? "Nenhuma pessoa encontrada com esses filtros. Ajuste o período ou a situação."
+            : "Ainda não há sessões registradas. Assim que alguém abrir o funil, os dados aparecem aqui."}
         </div>
       ) : (
         <>
