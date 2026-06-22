@@ -141,7 +141,7 @@ export const CONFIG: FunnelConfig = {
     {
       id: "experiencia",
       type: "single",
-      title: "Você já investe em marketing pago hoje?",
+      title: "Você já investe em tráfego pago hoje?",
       options: [
         { id: "eu-mesmo", label: "Sim, eu mesmo faço/gerencio" },
         { id: "contratei", label: "Sim, contratei uma pessoa ou agência" },
@@ -200,7 +200,7 @@ export const CONFIG: FunnelConfig = {
     title: "👋 Antes de finalizar...",
     body: "Agora nosso time vai analisar suas informações com cuidado. Enquanto isso, você já pode entrar gratuitamente no nosso grupo de WhatsApp. Lá a gente compartilha insights de marketing, tráfego e vendas, com estratégias práticas atualizadas.",
     cta: "ENTRAR NO GRUPO GRATUITO 🔗",
-    // Troque pelo link real de convite do grupo de WhatsApp.
-    url: "https://chat.whatsapp.com/SEU-LINK-DO-GRUPO",
+    // Link real de convite do grupo de WhatsApp.
+    url: "https://chat.whatsapp.com/LxIgN7vKmIi8PRdS9E37sd",
   },
 };
