@@ -76,7 +76,13 @@ function ensureSchema(): Promise<void> {
   return schemaReady;
 }
 
-type TrackType = "start" | "step" | "outcome" | "schedule" | "groupclick";
+type TrackType =
+  | "start"
+  | "step"
+  | "lead"
+  | "outcome"
+  | "schedule"
+  | "groupclick";
 
 type UpsertInput = {
   id: string;

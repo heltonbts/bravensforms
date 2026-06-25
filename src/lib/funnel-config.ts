@@ -86,16 +86,16 @@ export const CONFIG: FunnelConfig = {
 
   cover: {
     eyebrow: "Marketing completo · Bravens Mídia",
-    title: "Pare com o marketing amador e tenha a estrutura que o seu negócio precisa.",
+    title: "Descubra o plano de marketing ideal pra fazer seu negócio crescer.",
     bullets: [
       "🎯 Tráfego pago que dá retorno (ROAS)",
-      "🏪 Presença local pra loja física",
+      "🏪 Presença local pra sua loja aparecer",
       "🌐 Site, landing page e CRM",
       "🎬 Social media, vídeo e conteúdo",
     ],
     highlight:
-      "Exclusivo para empresas que já investem (ou estão dispostas a investir) NO MÍNIMO R$1.500/mês em mídia.",
-    cta: "PRECISO DE ESPECIALISTAS →",
+      "Leva menos de 1 minuto: responda e receba um diagnóstico gratuito do que falta no seu marketing.",
+    cta: "QUERO MEU DIAGNÓSTICO →",
   },
 
   texts: {
@@ -132,13 +132,6 @@ export const CONFIG: FunnelConfig = {
       required: true,
     },
     {
-      id: "email",
-      type: "email",
-      title: "Qual é o seu email?",
-      placeholder: "voce@empresa.com",
-      required: true,
-    },
-    {
       id: "experiencia",
       type: "single",
       title: "Você já investe em tráfego pago hoje?",
@@ -152,7 +145,6 @@ export const CONFIG: FunnelConfig = {
       id: "faturamento",
       type: "single",
       title: "Qual o faturamento médio mensal do seu negócio?",
-      note: "Obs: O seu faturamento não influencia na nossa precificação.",
       options: [
         // Lead desqualificado: vai direto pro grupo de WhatsApp.
         { id: "ate-15k", label: "Menos de R$15.000", outcome: "grupo" },
@@ -166,29 +158,20 @@ export const CONFIG: FunnelConfig = {
       id: "investir",
       type: "single",
       title:
-        "Está disposto a investir pelo menos R$1.500/mês em mídia (anúncios), desconsiderando o valor da nossa mão de obra?",
-      note:
-        'Caso selecione que "não", não entraremos em contato pra te convencer do contrário. Nosso foco é em empresas que entendem a importância e o impacto de um marketing bem feito.',
+        "Quanto está disposto a investir por mês para aumentar seu faturamento?",
       options: [
-        {
-          id: "sim",
-          label: "✅ Sim! Preciso de tráfego profissional.",
-          outcome: "qualificado",
-        },
-        {
-          id: "nao",
-          label: "❌ Não quero investir no meu negócio.",
-          outcome: "grupo",
-        },
+        { id: "1-1.5k", label: "R$1.000 a R$1.500", outcome: "qualificado" },
+        { id: "1.5-2.5k", label: "R$1.500 a R$2.500", outcome: "qualificado" },
+        { id: "4k-mais", label: "R$4.000 ou mais", outcome: "qualificado" },
       ],
     },
   ],
 
   qualified: {
     eyebrow: "Tudo certo, você foi selecionado 🎯",
-    title: "Sessão estratégica de marketing — 30 minutos",
+    title: "Sessão estratégica de marketing (30 minutos)",
     subtitle:
-      "Vamos entender seu negócio e montar o plano de marketing ideal. Escolha o melhor horário — fuso de Brasília (BRT).",
+      "Vamos entender seu negócio e montar o plano de marketing ideal. Escolha o melhor horário no fuso de Brasília (BRT).",
     // Agenda real (Calendly).
     calendarUrl: "https://calendly.com/hbatista-brasil/30min",
     footnote:

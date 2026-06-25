@@ -169,6 +169,8 @@ export default function Home() {
   const [message, setMessage] = useState("");
   const sessionIdRef = useRef("");
   const utmRef = useRef<Record<string, string>>({});
+  // Garante que o Lead (Pixel + CAPI) seja disparado uma única vez por sessão.
+  const leadFiredRef = useRef(false);
 
   const steps = CONFIG.steps;
   const step = steps[currentStep];
@@ -263,14 +265,13 @@ export default function Home() {
     setPhase(outcome);
     trackEvent("outcome", { outcome, answers: withOutcome });
 
-    // Otimização: SÓ o lead qualificado conta como "Lead" pro Facebook, pra a
-    // campanha aprender a trazer mais gente desse perfil (e não lead frio).
-    // O desqualificado vira evento customizado só pra relatório.
-    if (outcome === "qualificado") {
-      fireConversion("Lead", withOutcome);
-    } else {
-      trackCustom("LeadDesqualificado", { content_name: CONFIG.brandName });
-    }
+    // O "Lead" já disparou quando o contato foi preenchido (passo do email),
+    // pra dar o máximo de sinal ao Meta. Aqui só marcamos a QUALIDADE do lead
+    // como evento customizado, pra relatório — sem disparar Lead de novo.
+    trackCustom(
+      outcome === "qualificado" ? "LeadQualificado" : "LeadDesqualificado",
+      { content_name: CONFIG.brandName },
+    );
 
     // Persiste o lead no banco (todos os contatos, qualificado ou não).
     try {
@@ -326,6 +327,18 @@ export default function Home() {
       setMessage(CONFIG.texts.invalidEmail);
       return;
     }
+
+    // Contato completo (nome/WhatsApp): esse é o "lead" de verdade.
+    // Dispara Lead (Pixel + CAPI dedup) UMA vez aqui, antes da qualificação,
+    // pra o Meta receber o máximo de sinal mesmo com orçamento baixo —
+    // vale tanto pra quem vira qualificado quanto pra quem vai pro grupo.
+    if (step.type === "phone" && !leadFiredRef.current) {
+      leadFiredRef.current = true;
+      const withEmail = { ...answers, [step.id]: value };
+      fireConversion("Lead", withEmail);
+      trackEvent("lead", { answers: withEmail });
+    }
+
     advance();
   }
 

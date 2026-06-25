@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { upsertSession, type Outcome } from "@/lib/db";
 
-type TrackType = "start" | "step" | "outcome" | "schedule" | "groupclick";
+type TrackType =
+  | "start"
+  | "step"
+  | "lead"
+  | "outcome"
+  | "schedule"
+  | "groupclick";
 
 type TrackPayload = {
   sessionId?: string;
