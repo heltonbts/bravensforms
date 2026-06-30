@@ -1,6 +1,7 @@
 :root {
-  --primary: #030712;
-  --primary-hover: #353941;
+  --primary: #0f2a5c;
+  --primary-hover: #173a78;
+  --accent: #2563eb;
   --bg: #ffffff;
   --surface: #f8fafc;
   --text: #020617;
@@ -29,7 +30,7 @@ body {
   min-height: 100vh;
   color: var(--text);
   background:
-    radial-gradient(circle at top left, rgba(20, 184, 166, 0.14), transparent 26rem),
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.14), transparent 26rem),
     linear-gradient(180deg, #ffffff 0%, #f9fafb 100%);
   font-family: var(--font);
 }
@@ -209,8 +210,31 @@ button {
   transition: var(--transition);
 }
 
-.quiz-card.has-media {
+.quiz-card.has-media,
+.quiz-card.has-badge {
   grid-template-columns: auto 1fr auto;
+}
+
+/* Selo de letra (A, B, C) à esquerda da opção. */
+.quiz-card-badge {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  color: var(--text-muted);
+  background: var(--surface);
+  transition: var(--transition);
+}
+
+.quiz-card.active .quiz-card-badge {
+  border-color: var(--primary);
+  color: #ffffff;
+  background: var(--primary);
 }
 
 .quiz-card:hover {
@@ -288,6 +312,33 @@ button {
 .form-input:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(3, 7, 18, 0.08);
+}
+
+/* Campo com prefixo (ex.: 🇧🇷 +55 no WhatsApp). */
+.input-wrap.has-prefix {
+  display: flex;
+  align-items: stretch;
+}
+
+.phone-prefix {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  height: 58px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-right: 0;
+  border-radius: var(--border-radius-input) 0 0 var(--border-radius-input);
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.input-wrap.has-prefix .form-input {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
 }
 
 .actions {
@@ -618,7 +669,7 @@ button {
   height: 22px;
   flex-shrink: 0;
   border-radius: 50%;
-  background: #14b8a6;
+  background: #2563eb;
   color: #ffffff;
 }
 
@@ -642,9 +693,9 @@ button {
 .result-echo {
   margin: 20px 0 0;
   padding: 14px 16px;
-  border-left: 3px solid #14b8a6;
+  border-left: 3px solid #2563eb;
   border-radius: 0 12px 12px 0;
-  background: rgba(20, 184, 166, 0.08);
+  background: rgba(37, 99, 235, 0.08);
   font-weight: 600;
   line-height: 1.5;
 }
@@ -745,8 +796,8 @@ button {
   margin-top: 18px;
   padding: 16px;
   border-radius: 12px;
-  background: rgba(20, 184, 166, 0.08);
-  border: 1px solid rgba(20, 184, 166, 0.25);
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.25);
 }
 
 .offer-guarantee-title {
@@ -799,7 +850,7 @@ button {
   height: 22px;
   flex-shrink: 0;
   border-radius: 50%;
-  background: #14b8a6;
+  background: #2563eb;
   color: #ffffff;
   margin-top: 1px;
 }
@@ -824,14 +875,260 @@ button {
   line-height: 1.5;
 }
 
-/* ===== Calendário embutido (lead qualificado) ===== */
-.calendar-embed {
-  width: 100%;
-  height: min(72vh, 680px);
+/* ===== Agenda própria (lead qualificado) ===== */
+.sched-pick,
+.sched-review,
+.sched-done {
   margin-top: 22px;
+}
+
+.sched-loading {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.sched-label {
+  display: block;
+  margin: 18px 0 10px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.sched-label:first-child {
+  margin-top: 0;
+}
+
+/* ----- Calendário em grade (mês) ----- */
+.sched-cal {
   border: 1px solid var(--border);
   border-radius: var(--border-radius-card);
+  padding: 16px;
   background: #ffffff;
+}
+
+.sched-cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.sched-cal-month {
+  font-weight: 800;
+  font-size: 1.05rem;
+}
+
+.sched-cal-nav {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--text);
+  font-size: 1.2rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+}
+
+.sched-cal-nav:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
+.sched-cal-nav:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.sched-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.sched-cal-weekdays {
+  margin-bottom: 6px;
+}
+
+.sched-cal-weekday {
+  text-align: center;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  padding: 4px 0;
+}
+
+.sched-cal-day {
+  aspect-ratio: 1 / 1;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #cbd1d9;
+  font-weight: 700;
+  font-size: 0.95rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+}
+
+.sched-cal-day.is-muted {
+  visibility: hidden;
+}
+
+/* Dias com horário livre: clicáveis e destacados. */
+.sched-cal-day.is-free {
+  color: var(--primary);
+  background: rgba(37, 99, 235, 0.12);
+  cursor: pointer;
+}
+
+.sched-cal-day.is-free:hover {
+  background: rgba(37, 99, 235, 0.25);
+}
+
+.sched-cal-day.is-selected {
+  color: #ffffff;
+  background: #2563eb;
+}
+
+.sched-cal-day:disabled {
+  cursor: default;
+}
+
+.sched-cal-tz {
+  display: block;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.sched-day-label {
+  text-transform: capitalize;
+}
+
+.sched-times {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  gap: 8px;
+}
+
+.sched-time {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 8px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--text);
+  font-weight: 700;
+  transition: var(--transition);
+}
+
+.sched-time:hover {
+  border-color: var(--primary);
+  transform: translateY(-1px);
+}
+
+/* ----- Revisão ----- */
+.sched-review-when {
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  line-height: 1.4;
+}
+
+.sched-review-when-label {
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.sched-review-when strong {
+  font-size: 1.05rem;
+  text-transform: capitalize;
+}
+
+.sched-review-intro {
+  margin: 0 0 10px;
+  font-weight: 700;
+}
+
+.sched-review-list {
+  margin: 0;
+  display: grid;
+  gap: 1px;
+  border: 1px solid var(--border);
+  border-radius: var(--border-radius-card);
+  overflow: hidden;
+  background: var(--border);
+}
+
+.sched-review-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #ffffff;
+}
+
+.sched-review-row dt {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.sched-review-row dd {
+  margin: 0;
+  font-weight: 700;
+  text-align: right;
+}
+
+/* ----- Confirmação ----- */
+.sched-done {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+}
+
+.sched-done-check {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 1.8rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sched-done-title {
+  margin: 4px 0 0;
+  font-size: 1.5rem;
+}
+
+.sched-done-slot {
+  margin: 0;
+  font-weight: 700;
+  text-transform: capitalize;
 }
 
 /* ===== Tela "Analisando" ===== */
@@ -849,8 +1146,8 @@ button {
   width: 46px;
   height: 46px;
   border-radius: 50%;
-  border: 4px solid rgba(20, 184, 166, 0.2);
-  border-top-color: #14b8a6;
+  border: 4px solid rgba(37, 99, 235, 0.2);
+  border-top-color: #2563eb;
   animation: spin 0.8s linear infinite;
 }
 
@@ -892,7 +1189,7 @@ button {
   position: absolute;
   left: 16px;
   top: 14px;
-  color: #14b8a6;
+  color: #2563eb;
   font-weight: 800;
 }
 
@@ -942,7 +1239,7 @@ button {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: #14b8a6;
+  background: #2563eb;
   border: 2px solid #ffffff;
 }
 
@@ -1084,7 +1381,7 @@ button {
 
 .offer-discount {
   margin-left: auto;
-  background: #14b8a6;
+  background: #2563eb;
   color: #ffffff;
   font-weight: 800;
   font-size: 0.95rem;
@@ -1168,7 +1465,7 @@ button {
 
 .offer-badge {
   display: inline-block;
-  background: #14b8a6;
+  background: #2563eb;
   color: #ffffff;
   font-size: 0.72rem;
   font-weight: 800;
@@ -1207,7 +1504,7 @@ button {
   height: 22px;
   flex-shrink: 0;
   border-radius: 50%;
-  background: #14b8a6;
+  background: #2563eb;
   color: #ffffff;
   margin-top: 1px;
 }

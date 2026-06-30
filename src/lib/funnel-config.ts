@@ -60,9 +60,17 @@ type FunnelConfig = {
     eyebrow: string;
     title: string;
     subtitle: string;
-    // URL do Calendly / Cal.com (embed). Troque pela sua agenda real.
-    calendarUrl: string;
     footnote: string;
+  };
+
+  // Regras da agenda própria (sem Calendly). Horários em fuso de Brasília.
+  scheduling: {
+    durationMinutes: number; // duração de cada reunião / passo entre horários
+    // Dias da semana liberados (0 = domingo ... 6 = sábado).
+    weekdays: number[];
+    startHour: number; // primeiro horário do dia (ex.: 9 = 09:00)
+    endHour: number; // horário em que o último slot precisa terminar (ex.: 18)
+    daysAhead: number; // quantos dias à frente abrir a agenda
   };
 
   // Tela final B — lead DESQUALIFICADO (grupo de WhatsApp).
@@ -85,17 +93,17 @@ export const CONFIG: FunnelConfig = {
   facebookPixelId: process.env.NEXT_PUBLIC_FB_PIXEL_ID ?? "",
 
   cover: {
-    eyebrow: "Marketing completo · Bravens Mídia",
-    title: "Descubra o plano de marketing ideal pra fazer seu negócio crescer.",
+    eyebrow: "Tráfego para restaurantes · Bravens Mídia",
+    title: "🍕 Dono de restaurante, aumente seu faturamento com tráfego especializado em foodservice.",
     bullets: [
-      "🎯 Tráfego pago que dá retorno (ROAS)",
-      "🏪 Presença local pra sua loja aparecer",
-      "🌐 Site, landing page e CRM",
-      "🎬 Social media, vídeo e conteúdo",
+      "🛵 Cozinha movimentada todos os dias",
+      "🏆 Método validado",
+      "📱 Fortaleça seu cardápio digital próprio",
+      "💸 R$1MM/mês faturados pelos nossos clientes",
     ],
     highlight:
-      "Leva menos de 1 minuto: responda e receba um diagnóstico gratuito do que falta no seu marketing.",
-    cta: "QUERO MEU DIAGNÓSTICO →",
+      "Exclusivo para donos de restaurante que querem faturar mais e aumentar o número de pedidos.",
+    cta: "QUERO VENDER MAIS →",
   },
 
   texts: {
@@ -127,7 +135,7 @@ export const CONFIG: FunnelConfig = {
       id: "instagram",
       type: "text",
       title: "Qual @ do Instagram da sua empresa?",
-      subtitle: "Digite somente o user, sem o @ e sem espaços, por favor.",
+      subtitle: "Digite somente o nome de usuário, sem o @ e sem espaços, por favor.",
       placeholder: "seuusuario",
       required: true,
     },
@@ -145,6 +153,7 @@ export const CONFIG: FunnelConfig = {
       id: "faturamento",
       type: "single",
       title: "Qual o faturamento médio mensal do seu negócio?",
+      note: "Fica tranquilo: isso não interfere no valor do nosso serviço. É só pra entender o momento do seu negócio.",
       options: [
         // Lead desqualificado: vai direto pro grupo de WhatsApp.
         { id: "ate-15k", label: "Menos de R$15.000", outcome: "grupo" },
@@ -158,11 +167,19 @@ export const CONFIG: FunnelConfig = {
       id: "investir",
       type: "single",
       title:
-        "Quanto está disposto a investir por mês para aumentar seu faturamento?",
+        "Recomendamos um investimento a partir de R$1.000 por mês em anúncios. Esse valor se alinha ao seu orçamento atual?",
+      note: "Esse investimento não inclui o valor da nossa mão de obra.",
       options: [
-        { id: "1-1.5k", label: "R$1.000 a R$1.500", outcome: "qualificado" },
-        { id: "1.5-2.5k", label: "R$1.500 a R$2.500", outcome: "qualificado" },
-        { id: "4k-mais", label: "R$4.000 ou mais", outcome: "qualificado" },
+        {
+          id: "sim",
+          label: "Sim! Estou pronto para elevar o meu restaurante ao próximo nível 🚀",
+          outcome: "qualificado",
+        },
+        {
+          id: "nao",
+          label: "Infelizmente esse não é o momento",
+          outcome: "grupo",
+        },
       ],
     },
   ],
@@ -172,10 +189,17 @@ export const CONFIG: FunnelConfig = {
     title: "Sessão estratégica de marketing (30 minutos)",
     subtitle:
       "Vamos entender seu negócio e montar o plano de marketing ideal. Escolha o melhor horário no fuso de Brasília (BRT).",
-    // Agenda real (Calendly).
-    calendarUrl: "https://calendly.com/hbatista-brasil/30min",
     footnote:
       "Não consegue agora? Recarregue a página para reabrir a agenda quando puder.",
+  },
+
+  scheduling: {
+    durationMinutes: 30,
+    // Segunda a sábado (1..6). Domingo (0) fica de fora.
+    weekdays: [1, 2, 3, 4, 5, 6],
+    startHour: 9,
+    endHour: 18, // último horário começa às 17:30 (termina às 18:00)
+    daysAhead: 14,
   },
 
   group: {

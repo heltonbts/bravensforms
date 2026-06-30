@@ -125,7 +125,7 @@
 .dash-kpi-extra {
   display: block;
   margin-top: 2px;
-  color: #14b8a6;
+  color: #2563eb;
   font-size: 0.85rem;
   font-weight: 700;
 }
@@ -153,7 +153,7 @@
 .dash-stage-fill {
   position: absolute;
   inset: 0;
-  background: rgba(20, 184, 166, 0.12);
+  background: rgba(37, 99, 235, 0.12);
   z-index: 0;
 }
 
@@ -252,7 +252,7 @@
 }
 
 .dash-badge.is-offer {
-  background: #14b8a6;
+  background: #2563eb;
   color: #ffffff;
 }
 
@@ -318,9 +318,18 @@
 .dash-person-source {
   display: block;
   margin-top: 3px;
-  color: #14b8a6;
+  color: #2563eb;
   font-size: 0.8rem;
   font-weight: 700;
+}
+
+.dash-person-slot {
+  display: block;
+  margin-top: 3px;
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: capitalize;
 }
 
 .dash-person-tags {
@@ -410,4 +419,51 @@
 .dash-sale-warn {
   color: var(--text-muted);
   font-size: 0.82rem;
+}
+
+/* ===== Minha agenda (próximas reuniões) ===== */
+.dash-agenda {
+  margin-bottom: 32px;
+  border: 1px solid rgba(37, 99, 235, 0.35);
+  border-radius: var(--border-radius-card);
+  background: rgba(37, 99, 235, 0.06);
+  padding: 18px 20px;
+}
+
+.dash-agenda .dash-section-title {
+  margin-top: 0;
+}
+
+.dash-agenda-empty {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.dash-agenda-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.dash-agenda-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+}
+
+.dash-agenda-when {
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.dash-agenda-who {
+  color: var(--text-muted);
+  font-size: 0.9rem;
 }

@@ -10,6 +10,7 @@ export type Session = {
   maxStepId: string | null;
   outcome: Outcome | null;
   scheduled: boolean;
+  scheduledAt: string | null;
   groupClicked: boolean;
   sold: boolean;
   saleValue: number | null;
@@ -55,6 +56,21 @@ function ensureSchema(): Promise<void> {
       await sql`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS sold boolean NOT NULL DEFAULT false`;
       await sql`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS sale_value numeric`;
       await sql`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS utm jsonb NOT NULL DEFAULT '{}'::jsonb`;
+      await sql`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS scheduled_at timestamptz`;
+      // Agenda própria: cada reunião marcada. UNIQUE (slot) evita dois leads
+      // pegarem o mesmo horário.
+      await sql`
+        CREATE TABLE IF NOT EXISTS appointments (
+          id text PRIMARY KEY,
+          session_id text,
+          slot timestamptz NOT NULL UNIQUE,
+          name text,
+          phone text,
+          instagram text,
+          answers jsonb NOT NULL DEFAULT '{}'::jsonb,
+          created_at timestamptz NOT NULL DEFAULT now()
+        )
+      `;
       await sql`
         CREATE TABLE IF NOT EXISTS leads (
           id text PRIMARY KEY,
@@ -168,6 +184,9 @@ function mapSession(row: Record<string, unknown>): Session {
     maxStepId: (row.max_step_id as string | null) ?? null,
     outcome: (row.outcome as Outcome | null) ?? null,
     scheduled: Boolean(row.scheduled),
+    scheduledAt: row.scheduled_at
+      ? new Date(row.scheduled_at as string).toISOString()
+      : null,
     groupClicked: Boolean(row.group_clicked),
     sold: Boolean(row.sold),
     saleValue: row.sale_value == null ? null : Number(row.sale_value),
@@ -182,7 +201,7 @@ function mapSession(row: Record<string, unknown>): Session {
 
 const SESSION_COLS = `
   id, started_at, updated_at, max_step_index, max_step_id,
-  outcome, scheduled, group_clicked, sold, sale_value,
+  outcome, scheduled, scheduled_at, group_clicked, sold, sale_value,
   utm, answers, name, phone, email, instagram
 `;
 
@@ -207,4 +226,83 @@ export async function markSale(input: {
     [input.value, input.sessionId],
   )) as Record<string, unknown>[];
   return rows.length ? mapSession(rows[0]) : null;
+}
+
+export type Appointment = {
+  id: string;
+  sessionId: string | null;
+  slot: string; // ISO/UTC
+  name: string | null;
+  phone: string | null;
+  instagram: string | null;
+  answers: Record<string, string>;
+  createdAt: string;
+};
+
+function mapAppointment(row: Record<string, unknown>): Appointment {
+  return {
+    id: row.id as string,
+    sessionId: (row.session_id as string | null) ?? null,
+    slot: new Date(row.slot as string).toISOString(),
+    name: (row.name as string | null) ?? null,
+    phone: (row.phone as string | null) ?? null,
+    instagram: (row.instagram as string | null) ?? null,
+    answers: (row.answers as Record<string, string>) ?? {},
+    createdAt: new Date(row.created_at as string).toISOString(),
+  };
+}
+
+// Agenda de reuniões. Por padrão, só as de agora em diante, em ordem cronológica.
+export async function getAppointments(
+  opts: { upcomingOnly?: boolean } = {},
+): Promise<Appointment[]> {
+  await ensureSchema();
+  const rows = (
+    opts.upcomingOnly
+      ? await sql`SELECT * FROM appointments WHERE slot >= now() ORDER BY slot ASC`
+      : await sql`SELECT * FROM appointments ORDER BY slot DESC`
+  ) as Record<string, unknown>[];
+  return rows.map(mapAppointment);
+}
+
+// Horários já reservados de agora em diante (ISO/UTC), pra esconder da agenda.
+export async function getTakenSlots(): Promise<string[]> {
+  await ensureSchema();
+  const rows = (await sql`
+    SELECT slot FROM appointments WHERE slot >= now() ORDER BY slot
+  `) as Record<string, unknown>[];
+  return rows.map((r) => new Date(r.slot as string).toISOString());
+}
+
+// Reserva um horário. Devolve { ok } ou { conflict } se o slot já foi pego.
+// Também marca a sessão como agendada e guarda o horário escolhido.
+export async function bookAppointment(input: {
+  id: string;
+  sessionId: string;
+  slot: string; // ISO/UTC
+  name: string | null;
+  phone: string | null;
+  instagram: string | null;
+  answers: Record<string, string>;
+}): Promise<{ ok: boolean; conflict: boolean }> {
+  await ensureSchema();
+  const rows = (await sql`
+    INSERT INTO appointments (id, session_id, slot, name, phone, instagram, answers)
+    VALUES (
+      ${input.id}, ${input.sessionId}, ${input.slot},
+      ${input.name}, ${input.phone}, ${input.instagram},
+      ${JSON.stringify(input.answers)}::jsonb
+    )
+    ON CONFLICT (slot) DO NOTHING
+    RETURNING id
+  `) as Record<string, unknown>[];
+
+  if (rows.length === 0) return { ok: false, conflict: true };
+
+  await sql`
+    UPDATE sessions
+    SET scheduled = true, scheduled_at = ${input.slot}, updated_at = now()
+    WHERE id = ${input.sessionId}
+  `;
+  return { ok: true, conflict: false };
 }

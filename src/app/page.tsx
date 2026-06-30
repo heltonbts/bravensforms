@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { CONFIG, type Outcome, type QuizStep } from "@/lib/funnel-config";
+import { Scheduler } from "./Scheduler";
 
 type Answers = Record<string, string>;
 type Phase = "cover" | "quiz" | "qualificado" | "grupo";
@@ -107,6 +108,13 @@ function applyPhoneMask(value: string) {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
 }
 
+// Instagram: aceita só o @ do usuário — remove "@", espaços e a URL se colarem.
+function sanitizeInstagram(value: string) {
+  return value
+    .replace(/^https?:\/\/(www\.)?instagram\.com\//i, "")
+    .replace(/[@\s/]/g, "");
+}
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const UTM_KEYS = [
@@ -147,19 +155,6 @@ function resolveTracking(): Record<string, string> {
   }
   sessionStorage.setItem("funnel_utm", JSON.stringify(utm));
   return utm;
-}
-
-// Monta a URL do Calendly embutido, já com os dados do lead preenchidos.
-function calendlyEmbedUrl(answers: Answers) {
-  const url = new URL(CONFIG.qualified.calendarUrl);
-  if (answers.nome) url.searchParams.set("name", answers.nome.trim());
-  if (answers.email) url.searchParams.set("email", answers.email.trim());
-  url.searchParams.set("hide_gdpr_banner", "1");
-  if (typeof window !== "undefined") {
-    url.searchParams.set("embed_domain", window.location.host);
-    url.searchParams.set("embed_type", "Inline");
-  }
-  return url.toString();
 }
 
 export default function Home() {
@@ -207,25 +202,11 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep, phase]);
 
-  // Detecta quando o lead agenda de fato no Calendly (evento via postMessage).
-  useEffect(() => {
-    if (phase !== "qualificado") return;
-    function onMessage(event: MessageEvent) {
-      const data = event.data;
-      if (
-        data &&
-        typeof data === "object" &&
-        (data as { event?: string }).event === "calendly.event_scheduled"
-      ) {
-        // Sinal mais forte do funil: agendou de fato. Dispara Pixel + CAPI.
-        fireConversion("Schedule", answers);
-        trackEvent("schedule");
-      }
-    }
-    window.addEventListener("message", onMessage);
-    return () => window.removeEventListener("message", onMessage);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase]);
+  // Lead agendou de fato na nossa agenda: sinal mais forte do funil.
+  // A própria rota /api/schedule marca a sessão; aqui disparamos Pixel + CAPI.
+  function handleScheduled() {
+    fireConversion("Schedule", answers);
+  }
 
   const progress =
     steps.length > 0 ? Math.round(((currentStep + 1) / steps.length) * 100) : 0;
@@ -292,22 +273,31 @@ export default function Home() {
     }
   }
 
-  // Seleção em etapa de escolha única: marca e ou avança ou encerra no desfecho.
+  // Seleção em etapa de escolha única: só marca a opção (não avança).
+  // O avanço acontece quando a pessoa clica em "Continuar".
   function pickSingle(
     stepDef: Extract<QuizStep, { type: "single" }>,
     optionId: string,
   ) {
     buzz();
-    const next = { ...answers, [stepDef.id]: optionId };
-    setAnswers(next);
-    const option = stepDef.options.find((o) => o.id === optionId);
-    setTimeout(() => {
-      if (option?.outcome) {
-        finishWith(option.outcome, next);
-      } else {
-        advance();
-      }
-    }, 240);
+    setMessage("");
+    setAnswers((current) => ({ ...current, [stepDef.id]: optionId }));
+  }
+
+  // Botão "Continuar" das perguntas de escolha única: valida a seleção e então
+  // avança ou encerra no desfecho da opção escolhida.
+  function handleSingleNext(stepDef: Extract<QuizStep, { type: "single" }>) {
+    const selectedId = answers[stepDef.id];
+    if (!selectedId) {
+      setMessage(CONFIG.texts.required);
+      return;
+    }
+    const option = stepDef.options.find((o) => o.id === selectedId);
+    if (option?.outcome) {
+      finishWith(option.outcome, answers);
+    } else {
+      advance();
+    }
   }
 
   function handleFieldNext(event: FormEvent) {
@@ -415,17 +405,21 @@ export default function Home() {
 
             {step.type === "single" ? (
               <div className="options-grid" role="radiogroup">
-                {step.options.map((option) => {
+                {step.options.map((option, index) => {
                   const isActive = answers[step.id] === option.id;
+                  const letter = String.fromCharCode(65 + index); // A, B, C...
                   return (
                     <button
-                      className={`quiz-card${isActive ? " active" : ""}`}
+                      className={`quiz-card has-badge${isActive ? " active" : ""}`}
                       type="button"
                       key={option.id}
                       onClick={() => pickSingle(step, option.id)}
                       role="radio"
                       aria-checked={isActive}
                     >
+                      <span className="quiz-card-badge" aria-hidden="true">
+                        {letter}
+                      </span>
                       <span className="quiz-card-main">
                         <span className="quiz-card-title">{option.label}</span>
                         {option.description ? (
@@ -440,10 +434,30 @@ export default function Home() {
                     </button>
                   );
                 })}
+                <div className="actions">
+                  <button
+                    className="btn-primary"
+                    type="button"
+                    onClick={() => handleSingleNext(step)}
+                    disabled={!answers[step.id]}
+                  >
+                    {CONFIG.texts.next}
+                  </button>
+                </div>
               </div>
             ) : (
               <form className="form-block" onSubmit={handleFieldNext}>
-                <input
+                <div
+                  className={
+                    step.type === "phone" ? "input-wrap has-prefix" : "input-wrap"
+                  }
+                >
+                  {step.type === "phone" ? (
+                    <span className="phone-prefix" aria-hidden="true">
+                      🇧🇷 +55
+                    </span>
+                  ) : null}
+                  <input
                   className="form-input"
                   type={
                     step.type === "phone"
@@ -476,11 +490,14 @@ export default function Home() {
                       step.id,
                       step.type === "phone"
                         ? applyPhoneMask(event.target.value)
-                        : event.target.value,
+                        : step.id === "instagram"
+                          ? sanitizeInstagram(event.target.value)
+                          : event.target.value,
                     )
                   }
                   autoFocus
                 />
+                </div>
                 <div className="actions">
                   <button className="btn-primary" type="submit">
                     {CONFIG.texts.next}
@@ -501,10 +518,10 @@ export default function Home() {
             <h1 className="step-title">{CONFIG.qualified.title}</h1>
             <p className="step-subtitle">{CONFIG.qualified.subtitle}</p>
 
-            <iframe
-              className="calendar-embed"
-              title="Agendar reunião"
-              src={calendlyEmbedUrl(answers)}
+            <Scheduler
+              sessionId={sessionIdRef.current}
+              answers={answers}
+              onScheduled={handleScheduled}
             />
 
             <p className="cta-note">{CONFIG.qualified.footnote}</p>

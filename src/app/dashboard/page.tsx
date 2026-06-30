@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { CONFIG, type QuizStep } from "@/lib/funnel-config";
-import { getSessions, type Session } from "@/lib/db";
+import { getSessions, getAppointments, type Session } from "@/lib/db";
+import { formatSlot } from "@/lib/scheduling";
 import { SaleButton } from "./SaleButton";
 import "./dashboard.css";
 
@@ -101,9 +102,19 @@ export default async function DashboardPage({
 }: {
   searchParams: Promise<DashboardSearchParams>;
 }) {
-  const { from = "", to = "", status = "" } = await searchParams;
+  const sp = await searchParams;
+  // Por padrão a página já abre filtrada em "hoje" (fuso de Brasília). Quando o
+  // parâmetro vem vazio (ex.: "Ver tudo"), respeita a string vazia e mostra tudo.
+  const today = new Date().toLocaleDateString("en-CA", {
+    timeZone: "America/Sao_Paulo",
+  });
+  const from = sp.from ?? today;
+  const to = sp.to ?? today;
+  const status = sp.status ?? "";
 
   const allSessions = await getSessions();
+  // Agenda: próximas reuniões marcadas (independe do filtro de período).
+  const upcoming = await getAppointments({ upcomingOnly: true });
 
   // Aplica os filtros: intervalo de dias (fuso de Brasília) e situação no funil.
   const sessions = allSessions.filter((s) => {
@@ -188,12 +199,38 @@ export default async function DashboardPage({
         <button type="submit" className="dash-filter-btn">
           Filtrar
         </button>
-        {hasFilter ? (
-          <a href="/dashboard" className="dash-filter-clear">
-            Limpar
-          </a>
-        ) : null}
+        <a href="/dashboard" className="dash-filter-clear">
+          Hoje
+        </a>
+        <a href="/dashboard?from=&to=" className="dash-filter-clear">
+          Ver tudo
+        </a>
       </form>
+
+      <section className="dash-agenda">
+        <h2 className="dash-section-title">
+          Minha agenda · próximas reuniões ({upcoming.length})
+        </h2>
+        {upcoming.length === 0 ? (
+          <p className="dash-agenda-empty">
+            Nenhuma reunião marcada no momento. Quando um lead qualificado agendar,
+            ela aparece aqui.
+          </p>
+        ) : (
+          <ul className="dash-agenda-list">
+            {upcoming.map((appt) => (
+              <li className="dash-agenda-item" key={appt.id}>
+                <span className="dash-agenda-when">{formatSlot(appt.slot)}</span>
+                <span className="dash-agenda-who">
+                  {appt.name ?? "Sem nome"}
+                  {appt.phone ? ` · ${appt.phone}` : ""}
+                  {appt.instagram ? ` · @${appt.instagram}` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       {total === 0 ? (
         <div className="dash-empty">
@@ -310,6 +347,11 @@ export default async function DashboardPage({
                         {formatDate(session.updatedAt)}
                       </span>
                       <span className="dash-person-source">📍 {sourceDetail(session)}</span>
+                      {session.scheduledAt ? (
+                        <span className="dash-person-slot">
+                          🗓️ Reunião: {formatSlot(session.scheduledAt)}
+                        </span>
+                      ) : null}
                     </div>
                     <div className="dash-person-tags">
                       <span className={`dash-badge is-${stage.kind}`}>{stage.label}</span>
